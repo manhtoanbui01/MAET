@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.cfg
 setup.py
@@ -148,20 +149,14 @@ mmdet/models/dense_heads/ssd_head.py
 mmdet/models/dense_heads/vfnet_head.py
 mmdet/models/dense_heads/yolact_head.py
 mmdet/models/dense_heads/yolo_head.py
-mmdet/models/detectors/Deg_FasterRCNN.py
-mmdet/models/detectors/MAET_FasterRCNN.py
-mmdet/models/detectors/MAET_yolo.py
-mmdet/models/detectors/Rot_FCOS.py
 mmdet/models/detectors/__init__.py
 mmdet/models/detectors/atss.py
 mmdet/models/detectors/base.py
 mmdet/models/detectors/cascade_rcnn.py
 mmdet/models/detectors/cornernet.py
-mmdet/models/detectors/double_yolo.py
 mmdet/models/detectors/fast_rcnn.py
 mmdet/models/detectors/faster_rcnn.py
 mmdet/models/detectors/fcos.py
-mmdet/models/detectors/fcos_resolution.py
 mmdet/models/detectors/fovea.py
 mmdet/models/detectors/fsaf.py
 mmdet/models/detectors/gfl.py
@@ -181,9 +176,6 @@ mmdet/models/detectors/two_stage.py
 mmdet/models/detectors/vfnet.py
 mmdet/models/detectors/yolact.py
 mmdet/models/detectors/yolo.py
-mmdet/models/detectors/yolo_gamma.py
-mmdet/models/detectors/yolo_gamma_noise.py
-mmdet/models/detectors/yolo_low.py
 mmdet/models/losses/__init__.py
 mmdet/models/losses/accuracy.py
 mmdet/models/losses/ae_loss.py
