@@ -21,7 +21,27 @@ def mkdir(path):
 ####################### the code for low-light image generation part #######################
 ########(1)unprocess part(RGB2RAW) (2)low light corruption part (3)ISP part(RAW2RGB)########
 ############################################################################################
+def get_mean_std(folder_path):
+    """
+    Calculate the mean and standard deviation of images in a folder.
+    """
+    mean = 0.0
+    std = 0.0
+    num_images = 0
 
+    for filename in os.listdir(folder_path):
+        if filename.endswith(('.jpg', '.png', '.jpeg')):
+            img_path = os.path.join(folder_path, filename)
+            img = Image.open(img_path).convert('RGB')
+            img = np.array(img, dtype=np.float32)
+            mean += np.mean(img, axis=(0, 1))
+            std += np.std(img, axis=(0, 1))
+            num_images += 1
+
+    mean /= num_images
+    std /= num_images
+
+    return mean, std
 class Dark_ISP(object):
     '''
     darkness range : form
@@ -29,6 +49,8 @@ class Dark_ISP(object):
 
     def __init__(self,
                  img_path,
+                 mean,
+                 std,
                  darkness_range = (0.6, 1.0),
                  gamma_range=(1.0, 1.3),
                  rgb_range = (0.8, 1.0),
@@ -37,6 +59,8 @@ class Dark_ISP(object):
                  quantization = [4, 6, 8],
                  train_mode = True
                  ):
+        self.mean = mean
+        self.std = std
         self.img_path = img_path
         self.darkness_low, self.darkness_high = darkness_range
         self.gamma_low, self.gamma_high = gamma_range
@@ -79,10 +103,10 @@ class Dark_ISP(object):
         # img = results['img']
         img = Image.open(self.img_path).convert("RGB")
         img = np.array(img, dtype=np.float32)
-        mean = np.array([123.675, 116.28, 103.53], dtype=np.float32)
-        std = np.array([58.395, 57.12, 57.375], dtype=np.float32)
-        # mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
-        # std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+        mean = self.mean
+        std = self.std
+        # mean = np.array([123.675, 116.28, 103.53], dtype=np.float32)
+        # std = np.array([58.395, 57.12, 57.375], dtype=np.float32)
         img = (img - mean) / std
         # img/=255.0
         #ori_img means the original normal light images before Dark_ISP process
@@ -119,51 +143,19 @@ class Dark_ISP(object):
         img = np.clip(img , 0.0, 1.0)
 
         img = img.copy().astype(np.float32)
-
-        #Use both after_process_img and ori_img in train method, use only after_process_img in test method
-        # if self.train_mode:
-        #     results['img'] = img
-        #     results['ori_img'] = ori_img
-        # else:
-        #     results['img'] = img
-        #     results['ori_img'] = img
-
-        # lightness k, red gain, blue gain, gamma, noise var, quantization step
-        # transforms = np.array([[k, red_gain, blue_gain, gamma, var, quan]]).astype(np.float32)
-        # rgb2cam = np.reshape(rgb2cam, (-1,9)).astype(np.float32)    #3x3 matrix
-        #print(rgb2cam)
-        #transforms martrix and rgb2cam matrix 
-        # results['transform'] = transforms
-        # results['rgb2cam'] = rgb2cam
         return img
 
 
     # RGB2RAW(1.inverse tone, 2.inverse gamma, 3.sRGB2cRGB, 4.inverse WB digital gains)
     def inverse_process(self, img):
-        #img_save_path1 = osp.join(save_path1, ori_filename)
-        #1.inverse tone mapping
-        #tone_type = np.random.randint(0, 2)
-        #if tone_type == 0:
-        #    img = 0.5 - np.sin(np.arcsin(1.0 - 2.0 * img) / 3.0)
-        #if tone_type == 1:
-        #    img = img
-        
-        #2.inverse gamma correction
         gamma = np.random.uniform(self.gamma_low, self.gamma_high)
         #print('the gamma is :', gamma)
         img =  np.maximum(img, 1e-8) **gamma
-
-        #3.sRGB to camera RGB
-        #num_ccms = len(self.xyz2cams)
-        #weights = random.uniform(1e-8, 1e8, size = (num_ccms, 1, 1))
-        #weights_sum = np.sum(weights, axis=0)
-        #xyz2cam = np.sum(self.xyz2cams * weights, axis=0) / weights_sum
         xyz2cam = random.choice(self.xyz2cams)
         rgb2xyz = np.array(self.rgb2xyz)
         rgb2cam = np.matmul(xyz2cam, rgb2xyz)
         rgb2cam = rgb2cam / np.sum(rgb2cam, axis=-1)
-        #print(rgb2cam)
-        #print('111111',rgb2cam.shape)
+
         img = self.apply_ccm(img, rgb2cam)
         
         #4. inverse white balance and digital gain
@@ -255,36 +247,17 @@ class Dark_ISP(object):
         repr_str = self.__class__.__name__
         return repr_str
 
-
-'''Generate low-light images for the Market-1501 dataset'''
-# num_lowlight_per_image = 1
-# output_path = "/mnt/disk1/data/environment_maps/low_light/relighting_market1501_x3_noise"
-# os.makedirs(output_path, exist_ok=True)
-# dataset_path = "/mnt/disk1/data/environment_maps/low_light/relighting_market1501_x3/"
-# for folder in os.listdir(dataset_path):
-#     folder_path = os.path.join(dataset_path, folder)
-#     img_list = [img for img in os.listdir(folder_path) if img.endswith(".jpg")]
-#     for image in img_list:
-#         image_path = os.path.join(folder_path, image)
-#         for i in range(num_lowlight_per_image):
-#             degrade_result = Dark_ISP(image_path).__call__()
-#             degrade_result = (degrade_result * 255).astype(np.uint8)
-#             degrade_result_pil = Image.fromarray(degrade_result)
-#             save_path = os.path.join(output_path, folder)
-#             os.makedirs(save_path, exist_ok=True)
-#             # degrade_result_pil.save(os.path.join(save_path, f"{image.split('.')[0]}_{i}.jpg"))
-#             degrade_result_pil.save(os.path.join(save_path, f"{image.split('.')[0]}.jpg"))
-#         print(f"Finish processing {image_path}")
 num_lowlight_per_image = 1
 output_path = "/mnt/disk1/data/environment_maps/low_light/relighting_market1501_x3_noise"
 os.makedirs(output_path, exist_ok=True)
 dataset_path = "/mnt/disk1/data/environment_maps/low_light/relighting_market1501_x3/"
-
+mean, std = get_mean_std(dataset_path)
+print(f"mean: {mean}, std: {std}")
 img_list = [img for img in os.listdir(dataset_path) if img.endswith((".jpg", ".png"))]
 for image in img_list:
     image_path = os.path.join(dataset_path, image)
     for i in range(num_lowlight_per_image):
-        degrade_result = Dark_ISP(image_path).__call__()
+        degrade_result = Dark_ISP(image_path, mean, std).__call__()
         degrade_result = (degrade_result * 255).astype(np.uint8)
         degrade_result_pil = Image.fromarray(degrade_result)
         save_path = output_path
